@@ -38,7 +38,7 @@ JOIN ITENS_PEDIDO AS IP ON IP.ID_PEDIDO = PE.ID_PEDIDO
 JOIN PRODUTOS AS P ON IP.ID_PRODUTO = P.ID_PRODUTO
 WHERE P.NOME_PRODUTO = 'Notebook';
 
--- STORE PROCEDURE
+-- STORED PROCEDURE
 
 -- Criar uma procedure chamada fazer_pedido
 DELIMITER & 
@@ -91,4 +91,31 @@ BEGIN
     WHERE ID_PRODUTO = P_ID_PRODUTO;
 END
 @
+
+
+-- TRIGGER
+
+DELIMITER $
+CREATE TRIGGER LOG_ESTOQUE_MODIFICADO
+AFTER UPDATE ON PRODUTOS
+FOR EACH ROW
+BEGIN
+    DECLARE acao_estoque VARCHAR(20);
+    DECLARE quantidade_afetada INT;
+
+    SET quantidade_afetada = NEW.ESTOQUE - OLD.ESTOQUE;
+
+    IF quantidade_afetada < 0 THEN
+        SET acao_estoque = 'VENDA';
+    ELSEIF quantidade_afetada > 0 THEN
+        SET acao_estoque = 'REPOSIÇÃO';
+    END IF;
+
+    IF quantidade_afetada != 0 THEN
+        INSERT INTO LOG_ESTOQUE (ID_PRODUTO, DATA_MODIFICACAO, ACAO, QUANTIDADE_AFETADA)
+        VALUES (OLD.ID_PRODUTO, NOW(), acao_estoque, ABS(quantidade_afetada));
+    END IF;
+END
+$
+
 
